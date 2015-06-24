@@ -109,3 +109,156 @@ int _tmain(int argc, _TCHAR* argv[])
 	return 0;
 }
 
+// ConsoleApplication2.cpp : 定义控制台应用程序的入口点。
+//
+
+//#ifdef TOKEN_H_INCLUDED
+
+//#endif
+
+#include "stdafx.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#define MAX_TOKEN_SIZE (100)
+#define TOKEN_H_INCLUDED
+
+using namespace std;
+
+typedef enum{
+	BAD_TOKEN,
+	NUMBER_TOKEN,
+	ADD_OPERATOR_TOKEN,
+	SUB_OPERATOR_TOKEN,
+	MUL_OPERATOR_TOKEN,
+	DIV_OPERATOR_TOKEN,
+	END_OF_LINE_TOKEN
+}TokenKind;
+
+typedef struct{
+	TokenKind kind;
+	double value;
+	char str[MAX_TOKEN_SIZE];
+}Token;
+
+void get_line(char *line);
+void get_token(Token *token);
+
+static char *st_line;
+static int st_line_pos;
+
+typedef enum{
+	INITIAL_STATUS,
+	IN_INT_PART_STATUS,
+	DOT_STATUS,
+	IN_FRAC_PART_STATUS
+}LexerStatus;
+
+void get_token(Token *token){
+	int out_pos = 0;
+	LexerStatus status = INITIAL_STATUS;
+	char current_char;
+	token->kind = BAD_TOKEN;
+	while (st_line[st_line_pos] != '\0'){
+		current_char = st_line[st_line_pos];
+		//printf("current_char=%d", current_char);
+		if ((status == IN_INT_PART_STATUS || status == IN_FRAC_PART_STATUS) && isdigit(current_char) && current_char != '.'){
+			printf("current_char=%c", current_char);
+			token->kind = NUMBER_TOKEN;
+			sscanf_s(token->str, "%1f", token->value);
+			return;
+		}
+
+		if (isspace(current_char)){
+			if (current_char == '\r\n'){
+				printf("current_char=%c", current_char);
+				token->kind = END_OF_LINE_TOKEN;
+				return;
+			}
+			st_line_pos++;
+			continue;
+		}
+
+		if (out_pos >= MAX_TOKEN_SIZE - 1){
+			fprintf(stderr, "token too lang.\r\n");
+			exit(1);
+		}
+
+		token->str[out_pos] = st_line[st_line_pos];
+		st_line_pos++;
+		out_pos++;
+		token->str[out_pos] = '\0';
+
+		if (current_char == '+'){
+			printf("current_char=%c", current_char);
+			token->kind = ADD_OPERATOR_TOKEN;
+			return;
+		}
+		else if (current_char == '-'){
+			token->kind = SUB_OPERATOR_TOKEN;
+			return;
+		}
+		else if (current_char == '*'){
+			token->kind = MUL_OPERATOR_TOKEN;
+			return;
+		}
+		else if (current_char == '/'){
+			token->kind = DIV_OPERATOR_TOKEN;
+			return;
+		}
+		else if (isdigit(current_char)){
+			if (status == INITIAL_STATUS){
+				status = IN_INT_PART_STATUS;
+			}
+			else if (status == DOT_STATUS){
+				status = IN_FRAC_PART_STATUS;
+			}
+		}
+		else if (current_char == '.'){
+			if (status == IN_INT_PART_STATUS){
+				status = DOT_STATUS;
+			}
+			else{
+				fprintf(stderr, "syntax error.\r\n");
+			}
+		}
+		else{
+			fprintf(stderr, "bad character(%c).\r\n", current_char);
+			exit(1);
+		}
+
+	}
+}
+
+void set_line(char *line){
+	st_line = line;
+	st_line_pos = 0;
+}
+
+void parse_line(char *buf){
+	Token token;
+	set_line(buf);
+	for (;;){
+		get_token(&token);
+		if (token.kind == END_OF_LINE_TOKEN){
+			break;
+		}
+		else{
+			//printf("kind..%d,str..%s\r\n",token.kind,token.str);
+		}
+	}
+}
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+
+	char buf[1024];
+	while (fgets(buf, 1024, stdin) != NULL){
+		printf("receive:%s", buf);
+		parse_line(buf);
+	}
+	return 0;
+}
+
+
